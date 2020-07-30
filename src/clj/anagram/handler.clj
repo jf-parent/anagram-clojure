@@ -38,6 +38,11 @@
    :headers {"Content-Type" "application/json"}
    :body (json/write-str {:anagram (util/shuffle-word (util/draw-word))})})
 
+(defn get-top-answers-api [request]
+  {:status 200
+   :headers {"Content-Type" "application/json"}
+   :body (json/write-str (util/get-top-answers (-> request :path-params :anagram)))})
+
 (defn post-get-score-api [request]
   (let [answer (-> request :path-params :answer)
         anagram (-> request :path-params :anagram)]
@@ -51,12 +56,8 @@
    (reitit-ring/router
     [["/" {:get {:handler index-handler}}]
      ["/get-score/:anagram/:answer" {:post {:handler post-get-score-api}}]
-     ["/get-shuffled-word/" {:get {:handler get-shuffled-word-api}}]
-     ["/items"
-      ["" {:get {:handler index-handler}}]
-      ["/:item-id" {:get {:handler index-handler
-                          :parameters {:path {:item-id int?}}}}]]
-     ["/about" {:get {:handler index-handler}}]])
+     ["/get-top-answers/:anagram" {:get {:handler get-top-answers-api}}]
+     ["/get-shuffled-word/" {:get {:handler get-shuffled-word-api}}]])
    (reitit-ring/routes
     (reitit-ring/create-resource-handler {:path "/" :root "/public"})
     (reitit-ring/create-default-handler))

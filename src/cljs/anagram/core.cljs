@@ -29,9 +29,14 @@
 
 (def current-anagram (reagent/atom ""))
 (def current-score (reagent/atom 0))
+(def last-top-answers (reagent/atom {}))
 
 ;; -------------------------
 ;; API
+
+(defn get-top-answers [anagram]
+  (go (let [response (<! (http/get (str (-> js/window .-location .-href) "get-top-answers/" anagram)))]
+        (reset! last-top-answers (:body response)))))
 
 (defn get-new-anagram []
   (go (let [response (<! (http/get (str (-> js/window .-location .-href) "get-shuffled-word/")))]
@@ -50,6 +55,7 @@
 
 (defn anagram-submit [current-anagram answer]
   (post-anagram-answer @current-anagram @answer)
+  (get-top-answers @current-anagram)
   (new-anagram)
   (reset! answer ""))
 
@@ -68,6 +74,14 @@
                             (when (= 13 (.-charCode e))
                               (anagram-submit current-anagram answer)))}]])
 
+(defn top-answers []
+  [:div
+   [:h3 "Top Answer"]
+   (for [keyval @last-top-answers]
+     [:div [:h4 (key keyval)]
+      [:ul
+       (for [word (val keyval)]
+         [:li word])]])])
 
 (defn home-page []
   (let [answer (reagent/atom "")]
@@ -76,7 +90,8 @@
        [:h1 "Anagram"]
        [anagram-question answer]
        [:input {:type "button" :value "Submit" :on-click (fn [] (anagram-submit current-anagram answer))}]
-       [:h3 @current-score]])))
+       [:h3 @current-score]
+       [top-answers]])))
 
 ;; -------------------------
 ;; Translate routes -> page components

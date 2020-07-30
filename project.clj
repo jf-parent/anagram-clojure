@@ -20,6 +20,7 @@
                  [metosin/reitit "0.5.1"]
                  [metosin/jsonista "0.2.6"]
                  [pez/clerk "1.0.0"]
+                 [org.clojure/math.combinatorics "0.1.6"]
                  [venantius/accountant "0.2.5"
                   :exclusions [org.clojure/tools.reader]]]
 
