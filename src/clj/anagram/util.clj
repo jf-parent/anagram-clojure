@@ -12,7 +12,7 @@
   (db/get-words-from-sig (sig-to-string (get-sig-word anagram))))
 
 (defn get-comb-anagram [anagram n]
-  (dedupe (map #(apply str %) (combo/combinations anagram n))))
+  (map #(apply str %) (combo/combinations anagram n)))
 
 (defn get-top-answers [anagram]
   (let [anagram-len (count anagram)]
