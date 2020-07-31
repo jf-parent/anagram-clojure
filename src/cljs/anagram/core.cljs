@@ -28,7 +28,7 @@
 ;; State
 
 (def current-anagram (reagent/atom ""))
-(def current-score (reagent/atom 0))
+(def current-score (reagent/atom -1))
 (def last-top-answers (reagent/atom {}))
 
 ;; -------------------------
@@ -50,6 +50,9 @@
 ;; -------------------------
 ;; Handler
 
+(defn shuffle-anagram [e]
+  (set! (.-innerHTML (.-target e)) (apply str (shuffle (seq "ANAGRAM")))))
+
 (defn new-anagram []
   (get-new-anagram))
 
@@ -64,34 +67,38 @@
 
 (defn anagram-question [answer]
   [:div
-   [:h2 @current-anagram]
-   [:input {:type "button" :value "Skip"
-            :on-click #(new-anagram)}]
-   [:input {:type "text"
-            :value @answer
-            :on-change #(reset! answer (-> % .-target .-value)) :placeholder "Answer"
-            :on-key-press (fn [e]
-                            (when (= 13 (.-charCode e))
-                              (anagram-submit current-anagram answer)))}]])
+   [:h1.anagram @current-anagram]
+   [:div
+    [:input {:type "text"
+             :value @answer
+             :on-change #(reset! answer (-> % .-target .-value))
+             :placeholder "Answer"
+             :on-key-press (fn [e]
+                             (when (= 13 (.-charCode e))
+                               (anagram-submit current-anagram answer)))}]
+    [:input {:type "button" :value "Submit" :on-click #(anagram-submit current-anagram answer)}]
+    [:input {:type "button" :value "Skip!" :on-click #(new-anagram)}]]])
 
 (defn top-answers []
   [:div
    [:h3 "Top Answer"]
    (for [keyval @last-top-answers]
-     [:div [:h4 (key keyval)]
+     [:div {:key (key keyval)}
+      [:div (key keyval)]
       [:ul
        (for [word (val keyval)]
-         [:li word])]])])
+         [:li {:key word} word])]])])
 
 (defn home-page []
   (let [answer (reagent/atom "")]
     (fn []
       [:span.main
-       [:h1 "Anagram"]
+       [:h1.title [:span {:on-mouse-over shuffle-anagram} "ANAGRAM"]]
        [anagram-question answer]
-       [:input {:type "button" :value "Submit" :on-click (fn [] (anagram-submit current-anagram answer))}]
-       [:h3 @current-score]
-       [top-answers]])))
+       (when (>= @current-score 0)
+         [:div
+          [:p @current-score]
+          [top-answers]])])))
 
 ;; -------------------------
 ;; Translate routes -> page components
