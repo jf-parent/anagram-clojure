@@ -2,6 +2,7 @@
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require
    [reagent.core :as reagent]
+   [alandipert.storage-atom :refer [local-storage]]
    [reagent.dom :as rdom]
    [reagent.session :as session]
    [cljs-http.client :as http]
@@ -25,11 +26,22 @@
     (:path (reitit/match-by-name router route))))
 
 ;; -------------------------
+;; Local storage
+
+;; (alandipert.storage-atom/remove-local-storage! :history)
+;; (alandipert.storage-atom/clear-local-storage!)
+
+(def history-local-storage (local-storage (atom []) :history))
+
+(println @history-local-storage)
+
+;; -------------------------
 ;; State
 
 (def current-anagram (reagent/atom ""))
 (def current-score (reagent/atom -1))
 (def last-top-answers (reagent/atom {}))
+(def history (reagent/atom @history-local-storage))
 
 ;; -------------------------
 ;; API
@@ -44,8 +56,11 @@
 
 (defn post-anagram-answer [anagram answer]
   (println anagram answer)
-  (go (let [response (<! (http/post (str (-> js/window .-location .-href) "get-score/" anagram "/" answer)))]
-     (reset! current-score (-> response :body :score)))))
+  (go (let [response (<! (http/post (str (-> js/window .-location .-href) "get-score/" anagram "/" answer)))
+            score (-> response :body :score)]
+        (reset! current-score score)
+        (swap! history-local-storage conj {:time (str (.getTime (js/Date.))) :score score :best-score (count anagram) :anagram anagram :answer answer})
+        (reset! history @history-local-storage))))
 
 ;; -------------------------
 ;; Handler
@@ -80,7 +95,7 @@
     [:input {:type "button" :value "Skip!" :on-click #(new-anagram)}]]])
 
 (defn top-answers []
-  [:div
+  [:span.top-answers-container
    [:h3 "Top Answer"]
    (for [keyval @last-top-answers]
      [:div {:key (key keyval)}
@@ -89,16 +104,30 @@
        (for [word (val keyval)]
          [:li {:key word} word])]])])
 
+(defn history-item [h]
+   [:span (str (h :answer) " : " (h :anagram) " - " (h :score) "/" (h :best-score))])
+
+(defn history-container []
+  [:span.history-container
+   [:h3 "History"]
+   (let [h (reverse @history)
+         last-answer (first h)
+         rest-answers (rest h)]
+     [:div
+      [:div.last-answer [history-item last-answer]]
+      [:hr.separator]
+      (for [a rest-answers]
+        [:div {:key (a :time)}[history-item a]])])])
+
 (defn home-page []
   (let [answer (reagent/atom "")]
     (fn []
-      [:span.main
+      [:div.main
        [:h1.title [:span {:on-mouse-over shuffle-anagram} "ANAGRAM"]]
        [anagram-question answer]
-       (when (>= @current-score 0)
-         [:div
-          [:p @current-score]
-          [top-answers]])])))
+       [:div [history-container]
+        (when (>= @current-score 0)
+          [top-answers])]])))
 
 ;; -------------------------
 ;; Translate routes -> page components
@@ -106,7 +135,6 @@
 (defn page-for [route]
   (case route
     :index #'home-page))
-
 
 ;; -------------------------
 ;; Page mounting component
@@ -116,7 +144,7 @@
     (let [page (:current-page (session/get :route))]
       [:div
        [:header
-       [page]]])))
+        [page]]])))
 
 ;; -------------------------
 ;; Initialize app

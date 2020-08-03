@@ -1,7 +1,7 @@
 .body-container {
   font-family: 'Droid Serif', serif;
   /*font-family: 'Helvetica Neue', Verdana, Helvetica, Arial, sans-serif;*/
-  max-width: 640px;
+  max-width: 800px;
   margin: 0 auto;
   padding-top: 72px;
   -webkit-font-smoothing: antialiased;
@@ -49,4 +49,23 @@ a:hover {
 
 .top-answer {
   border-top: black solid 2px;
+}
+
+.top-answers-container {
+  display:inline-block;
+  vertical-align: top;
+}
+
+.history-container {
+  display:inline-block;
+  margin-right: 5em;
+}
+
+.separator {
+  border-top: 1px solid black;
+}
+
+.last-answer {
+  font-size: xx-large;
+  font-weight: bold;
 }

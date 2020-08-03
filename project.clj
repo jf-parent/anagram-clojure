@@ -12,8 +12,8 @@
                  [reagent-utils "0.3.3"]
                  [ring "1.8.1"]
                  [ring/ring-defaults "0.3.2"]
-                 [com.taoensso/carmine "2.19.1"]
                  [hiccup "1.0.5"]
+                 [alandipert/storage-atom "1.2.4"]
                  [yogthos/config "1.1.7"]
                  [org.clojure/clojurescript "1.10.773"
                   :scope "provided"]
