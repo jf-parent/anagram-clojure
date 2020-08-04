@@ -41,7 +41,10 @@
 (def current-anagram (reagent/atom ""))
 (def current-score (reagent/atom -1))
 (def last-top-answers (reagent/atom {}))
+(def last-answer (reagent/atom {}))
 (def history (reagent/atom @history-local-storage))
+(def timer (reagent/atom 0))
+(defonce timer-fn (js/setInterval #(swap! timer inc) 1000))
 
 ;; -------------------------
 ;; API
@@ -57,9 +60,12 @@
 (defn post-anagram-answer [anagram answer]
   (println anagram answer)
   (go (let [response (<! (http/post (str (-> js/window .-location .-href) "get-score/" anagram "/" answer)))
-            score (-> response :body :score)]
+            score (-> response :body :score)
+            answer {:time (str (.getTime (js/Date.))) :score score :best-score (count anagram) :anagram anagram :answer answer :timer @timer}]
         (reset! current-score score)
-        (swap! history-local-storage conj {:time (str (.getTime (js/Date.))) :score score :best-score (count anagram) :anagram anagram :answer answer})
+        (reset! timer 0)
+        (reset! last-answer answer)
+        (swap! history-local-storage conj answer)
         (reset! history @history-local-storage))))
 
 ;; -------------------------
@@ -79,6 +85,10 @@
 
 ;; -------------------------
 ;; Page components
+
+(defn timer-component []
+  [:div.timer
+   [:div (str @timer " sec")]])
 
 (defn anagram-question [answer]
   [:div
@@ -105,16 +115,16 @@
          [:li {:key word} word])]])])
 
 (defn history-item [h]
-   [:span (str (h :answer) " : " (h :anagram) " - " (h :score) "/" (h :best-score))])
+   [:span (str (h :answer) " : " (h :anagram) " - " (h :score) "/" (h :best-score) " in " (h :timer) "sec")])
 
 (defn history-container []
   [:span.history-container
    [:h3 "History"]
    (let [h (reverse @history)
-         last-answer (first h)
-         rest-answers (rest h)]
+         rest-answers (if (not-empty @last-answer) (rest h) h)]
      [:div
-      [:div.last-answer [history-item last-answer]]
+      (when (not-empty @last-answer)
+        [:div.last-answer [history-item @last-answer]])
       [:hr.separator]
       (for [a rest-answers]
         [:div {:key (a :time)}[history-item a]])])])
@@ -124,6 +134,7 @@
     (fn []
       [:div.main
        [:h1.title [:span {:on-mouse-over shuffle-anagram} "ANAGRAM"]]
+       [timer-component]
        [anagram-question answer]
        [:div [history-container]
         (when (>= @current-score 0)
