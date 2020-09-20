@@ -28,17 +28,13 @@
 ;; -------------------------
 ;; Local storage
 
-;; (alandipert.storage-atom/remove-local-storage! :history)
-;; (alandipert.storage-atom/clear-local-storage!)
-
 (def history-local-storage (local-storage (atom []) :history))
-
-(println @history-local-storage)
 
 ;; -------------------------
 ;; State
 
 (def current-anagram (reagent/atom ""))
+(def answer (reagent/atom ""))
 (def current-score (reagent/atom -1))
 (def last-top-answers (reagent/atom {}))
 (def last-answer (reagent/atom {}))
@@ -47,18 +43,23 @@
 (defonce timer-fn (js/setInterval #(swap! timer inc) 1000))
 
 ;; -------------------------
+;; Functions
+
+(defn remove-first [p l]
+  (flatten (conj (remove p l) (rest (filter p l)))))
+
+;; -------------------------
 ;; API
 
 (defn get-top-answers [anagram]
   (go (let [response (<! (http/get (str (-> js/window .-location .-href) "get-top-answers/" anagram)))]
-        (reset! last-top-answers (:body response)))))
+        (reset! last-top-answers (:top-answers (:body response))))))
 
 (defn get-new-anagram []
   (go (let [response (<! (http/get (str (-> js/window .-location .-href) "get-shuffled-word/")))]
         (reset! current-anagram (-> response :body :anagram)))))
 
 (defn post-anagram-answer [anagram answer]
-  (println anagram answer)
   (go (let [response (<! (http/post (str (-> js/window .-location .-href) "get-score/" anagram "/" answer)))
             score (-> response :body :score)
             answer {:time (str (.getTime (js/Date.))) :score score :best-score (count anagram) :anagram anagram :answer answer :timer @timer}]
@@ -74,7 +75,12 @@
 (defn shuffle-anagram [e]
   (set! (.-innerHTML (.-target e)) (apply str (shuffle (seq "ANAGRAM")))))
 
+(defn clear-history []
+  (alandipert.storage-atom/clear-local-storage!)
+  (.reload (-> js/window .-location)))
+
 (defn new-anagram []
+  (reset! timer 0)
   (get-new-anagram))
 
 (defn anagram-submit [current-anagram answer]
@@ -90,10 +96,18 @@
   [:div.timer
    [:div (str @timer " sec")]])
 
-(defn anagram-question [answer]
+(defn anagram []
+  (loop [l (clojure.string/split @answer #"") a @current-anagram r [:h1]]
+     (if (empty? a)
+       r
+       (if ((set l) (first a))
+         (recur (remove-first #{(first a)} l) (rest a) (conj r [:span.anagram.strike (first a)]))
+         (recur l (rest a) (conj r [:span.anagram (first a)]))))))
+
+(defn anagram-question []
   [:div
-   [:h1.anagram @current-anagram]
    [:div
+    [anagram]
     [:input {:type "text"
              :value @answer
              :on-change #(reset! answer (-> % .-target .-value))
@@ -107,19 +121,16 @@
 (defn top-answers []
   [:span.top-answers-container
    [:h3 "Top Answer"]
-   (for [keyval @last-top-answers]
-     [:div {:key (key keyval)}
-      [:div (key keyval)]
-      [:ul
-       (for [word (val keyval)]
-         [:li {:key word} word])]])])
+   [:ul
+    (for [word @last-top-answers]
+      [:li {:key word} word])]])
 
 (defn history-item [h]
    [:span (str (h :answer) " : " (h :anagram) " - " (h :score) "/" (h :best-score) " in " (h :timer) "sec")])
 
 (defn history-container []
   [:span.history-container
-   [:h3 "History"]
+   [:h3 "History " [:input {:type "button" :value "clear" :on-click #(clear-history)}]]
    (let [h (reverse @history)
          rest-answers (if (not-empty @last-answer) (rest h) h)]
      [:div
@@ -130,15 +141,14 @@
         [:div {:key (a :time)}[history-item a]])])])
 
 (defn home-page []
-  (let [answer (reagent/atom "")]
-    (fn []
-      [:div.main
-       [:h1.title [:span {:on-mouse-over shuffle-anagram} "ANAGRAM"]]
-       [timer-component]
-       [anagram-question answer]
-       [:div [history-container]
-        (when (>= @current-score 0)
-          [top-answers])]])))
+  (fn []
+    [:div.main
+     [:h1.title [:span {:on-mouse-over shuffle-anagram} "ANAGRAM"]]
+     [timer-component]
+     [anagram-question]
+     [:div [history-container]
+      (when (>= @current-score 0)
+        [top-answers])]]))
 
 ;; -------------------------
 ;; Translate routes -> page components
@@ -175,8 +185,7 @@
         (reagent/after-render clerk/after-render!)
         (session/put! :route {:current-page (page-for current-page)
                               :route-params route-params})
-        (clerk/navigate-page! path)
-        ))
+        (clerk/navigate-page! path)))
     :path-exists?
     (fn [path]
       (boolean (reitit/match-by-path router path)))})

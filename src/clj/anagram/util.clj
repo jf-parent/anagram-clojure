@@ -36,10 +36,9 @@
   (map #(apply str %) (combo/combinations anagram n)))
 
 (defn get-top-answers [anagram]
-  (let [anagram-len (count anagram)]
-    {:top1 (get-alt-answer anagram)
-     :top2 (mapcat get-alt-answer (get-comb-anagram anagram (- anagram-len 1)))
-     :top3 (mapcat get-alt-answer (get-comb-anagram anagram (- anagram-len 2)))}))
+  (let [anagram-len (count anagram)
+        top-answers (mapcat get-alt-answer (mapcat #(get-comb-anagram anagram %) (range (- anagram-len 1) 3 -1)))]
+    {:top-answers top-answers}))
 
 (defn score-word [anagram soumission]
   (let [anagram-sig (get-sig-word anagram)
