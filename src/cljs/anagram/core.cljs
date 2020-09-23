@@ -79,8 +79,11 @@
   (alandipert.storage-atom/clear-local-storage!)
   (.reload (-> js/window .-location)))
 
-(defn new-anagram []
+(defn skip-anagram []
   (reset! timer 0)
+  (get-new-anagram))
+
+(defn new-anagram []
   (get-new-anagram))
 
 (defn anagram-submit [current-anagram answer]
@@ -116,7 +119,7 @@
                              (when (= 13 (.-charCode e))
                                (anagram-submit current-anagram answer)))}]
     [:input {:type "button" :value "Submit" :on-click #(anagram-submit current-anagram answer)}]
-    [:input {:type "button" :value "Skip!" :on-click #(new-anagram)}]]])
+    [:input {:type "button" :value "Skip!" :on-click #(skip-anagram)}]]])
 
 (defn top-answers []
   [:span.top-answers-container
