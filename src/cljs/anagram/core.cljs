@@ -126,7 +126,7 @@
    [:h3 "Top Answer"]
    [:ul
     (for [word @last-top-answers]
-      [:li {:key word} word])]])
+      [:li {:key word} [:a {:href (str "https://en.wiktionary.org/wiki/" word)} word]])]])
 
 (defn history-item [h]
    [:span (str (h :answer) " : " (h :anagram) " - " (h :score) "/" (h :best-score) " in " (h :timer) "sec")])

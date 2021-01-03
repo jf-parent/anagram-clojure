@@ -37,7 +37,7 @@
 
 (defn get-top-answers [anagram]
   (let [anagram-len (count anagram)
-        top-answers (mapcat get-alt-answer (mapcat #(get-comb-anagram anagram %) (range anagram-len 3 -1)))]
+        top-answers (mapcat get-alt-answer (mapcat #(get-comb-anagram anagram %) (range anagram-len 2 -1)))]
     {:top-answers top-answers}))
 
 (defn score-word [anagram soumission]
