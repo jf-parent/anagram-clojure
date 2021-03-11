@@ -9,6 +9,8 @@
    [cljs.core.async :refer [<!]]
    [reitit.frontend :as reitit]
    [clerk.core :as clerk]
+   [goog.string :as gstring]
+   [goog.string.format]
    [accountant.core :as accountant]))
 
 (enable-console-print!)
@@ -59,6 +61,20 @@
   (go (let [response (<! (http/get (str (-> js/window .-location .-href) "get-shuffled-word/")))]
         (reset! current-anagram (-> response :body :anagram)))))
 
+(defn format-timer-human-readable [total-seconds]
+  (let [hour   (* 1 60 60)
+        minute (* 1 60)
+        second 1
+        h      (int (quot total-seconds hour))
+        mh     (mod  total-seconds hour)
+        m      (int (quot mh minute))
+        mm     (mod  mh minute)
+        s      (int (quot mm second))]
+    (cond
+      (> h 0) (gstring/format "%02d:%02d:%02d" h m s)
+      (> m 0) (gstring/format "%02d:%02d" m s)
+      :else (gstring/format "%02d" s))))
+
 (defn post-anagram-answer [anagram answer]
   (go (let [response (<! (http/post (str (-> js/window .-location .-href) "get-score/" anagram "/" answer)))
             score (-> response :body :score)
@@ -97,7 +113,7 @@
 
 (defn timer-component []
   [:div.timer
-   [:div (str @timer " sec")]])
+   [:div (str (format-timer-human-readable @timer) " sec")]])
 
 (defn anagram []
   (loop [l (clojure.string/split @answer #"") a @current-anagram r [:h1]]
