@@ -113,7 +113,7 @@
 
 (defn timer-component []
   [:div.timer
-   [:div (str (format-timer-human-readable @timer) " sec")]])
+   [:div (str (format-timer-human-readable @timer))]])
 
 (defn anagram []
   (loop [l (clojure.string/split @answer #"") a @current-anagram r [:h1]]
@@ -142,10 +142,10 @@
    [:h3 "Top Answer"]
    [:ul
     (for [word @last-top-answers]
-      [:li {:key word} [:a {:href (str "https://en.wiktionary.org/wiki/" word)} word]])]])
+      [:li {:key word} [:a {:href (str "https://en.wiktionary.org/wiki/" word) :target "_blank"} word]])]])
 
 (defn history-item [h]
-   [:span (str (h :answer) " : " (h :anagram) " - " (h :score) "/" (h :best-score) " in " (h :timer) "sec")])
+   [:span (str (h :answer) " : " (h :anagram) " - " (h :score) "/" (h :best-score) " in " (h :timer))])
 
 (defn history-container []
   [:span.history-container
