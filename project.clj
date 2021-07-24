@@ -11,6 +11,7 @@
                  [reagent "0.10.0"]
                  [reagent-utils "0.3.3"]
                  [ring "1.8.1"]
+                 [ring/ring-json "0.5.1"]
                  [ring/ring-defaults "0.3.2"]
                  [hiccup "1.0.5"]
                  [alandipert/storage-atom "1.2.4"]

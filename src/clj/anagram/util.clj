@@ -18,7 +18,7 @@
 (defn sig-to-string [sig]
   (apply str (reduce-kv #(str %1 %2 %3) "" sig)))
 
-(defn init-word [file-name]
+(defn load-word-list [file-name]
   (with-open [rdr (BufferedReader. (FileReader. file-name))]
     (doseq [word (line-seq rdr)]
       (when (> (count word) 2)
@@ -26,8 +26,6 @@
               words (conj (or (@WORD-MAP sig) []) word)]
           (swap! WORD-MAP conj {sig words})
           (swap! WORD-KEY conj sig))))))
-
-(init-word "resources/english-simple.txt")
 
 (defn get-alt-answer [anagram]
   (get-words-from-sig (sig-to-string (get-sig-word anagram))))
@@ -61,3 +59,5 @@
 
 (defn draw-word []
   (get-random-word))
+
+(load-word-list "resources/english-simple.txt")

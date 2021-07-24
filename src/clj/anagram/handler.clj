@@ -1,6 +1,8 @@
 (ns anagram.handler
   (:require
    [reitit.ring :as reitit-ring]
+   [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
+   [ring.util.response :refer [response]]
    [anagram.middleware :refer [middleware]]
    [anagram.util :as util]
    [hiccup.page :refer [include-js include-css html5]]
@@ -9,9 +11,7 @@
 
 (def mount-target
   [:div#app
-   [:h2 "Welcome to anagram"]
-   [:p "please wait while Figwheel is waking up ..."]
-   [:p "(Check the js console for hints if nothing exciting happens.)"]])
+   [:h2 "Welcome to anagram"]])
 
 (defn head []
   [:head
@@ -27,37 +27,35 @@
     mount-target
     (include-js "/js/app.js")]))
 
-(defn index-handler
-  [_request]
+(defn index-handler [request]
   {:status 200
    :headers {"Content-Type" "text/html"}
    :body (loading-page)})
 
+(defn wrap-api-handler [handler]
+  (-> handler
+      wrap-json-response
+      wrap-json-body))
+
 (defn get-shuffled-word-api [request]
-  {:status 200
-   :headers {"Content-Type" "application/json"}
-   :body (json/write-str {:anagram (util/shuffle-word (util/draw-word))})})
+  (response {:anagram (util/shuffle-word (util/draw-word))}))
 
 (defn get-top-answers-api [request]
-  {:status 200
-   :headers {"Content-Type" "application/json"}
-   :body (json/write-str (util/get-top-answers (-> request :path-params :anagram)))})
+  (response (util/get-top-answers (-> request :path-params :anagram))))
 
 (defn post-get-score-api [request]
   (let [answer (-> request :path-params :answer)
         anagram (-> request :path-params :anagram)]
-    (println "Anagram:" anagram "Answer:" answer)
-    {:status 200
-     :headers {"Content-Type" "application/json"}
-     :body (json/write-str {:score (util/score-word anagram answer)})}))
+    ;; (println "Anagram:" anagram "Answer:" answer)
+    (response {:score (util/score-word anagram answer)})))
 
 (def app
   (reitit-ring/ring-handler
    (reitit-ring/router
     [["/" {:get {:handler index-handler}}]
-     ["/get-score/:anagram/:answer" {:post {:handler post-get-score-api}}]
-     ["/get-top-answers/:anagram" {:get {:handler get-top-answers-api}}]
-     ["/get-shuffled-word/" {:get {:handler get-shuffled-word-api}}]])
+     ["/api/get-score/:anagram/:answer" {:post (wrap-api-handler post-get-score-api)}]
+     ["/api/get-top-answers/:anagram" {:get (wrap-api-handler get-top-answers-api)}]
+     ["/api/get-shuffled-word/" {:get (wrap-api-handler get-shuffled-word-api)}]])
    (reitit-ring/routes
     (reitit-ring/create-resource-handler {:path "/" :root "/public"})
     (reitit-ring/create-default-handler))

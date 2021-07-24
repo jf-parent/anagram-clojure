@@ -13,6 +13,10 @@
    [goog.string.format]
    [accountant.core :as accountant]))
 
+;; -------------------------
+;; Config
+
+(def ENABLE-TRACING true)
 (enable-console-print!)
 
 ;; -------------------------
@@ -30,19 +34,31 @@
 ;; -------------------------
 ;; Local storage
 
-(def history-local-storage (local-storage (atom []) :history))
+(def history (local-storage (reagent/atom []) :history))
 
 ;; -------------------------
-;; State
+;; Atoms
 
 (def current-anagram (reagent/atom ""))
 (def answer (reagent/atom ""))
 (def current-score (reagent/atom -1))
 (def last-top-answers (reagent/atom {}))
 (def last-answer (reagent/atom {}))
-(def history (reagent/atom @history-local-storage))
 (def timer (reagent/atom 0))
 (defonce timer-fn (js/setInterval #(swap! timer inc) 1000))
+
+(defn atom-watcher [key atom old-state new-state]
+  "Add atom watcher helper function."
+  (prn (str "[DEBUG]" key " " old-state " -> " new-state)))
+
+;; -------------------------
+;; Tracing
+
+(when ENABLE-TRACING
+  (add-watch current-anagram :current-anagram atom-watcher)
+  (add-watch answer :answer atom-watcher)
+  (add-watch current-score :current-score atom-watcher)
+  (add-watch last-answer :last-quest atom-watcher))
 
 ;; -------------------------
 ;; Functions
@@ -50,16 +66,10 @@
 (defn remove-first [p l]
   (flatten (conj (remove p l) (rest (filter p l)))))
 
-;; -------------------------
-;; API
-
-(defn get-top-answers [anagram]
-  (go (let [response (<! (http/get (str (-> js/window .-location .-href) "get-top-answers/" anagram)))]
-        (reset! last-top-answers (:top-answers (:body response))))))
-
-(defn get-new-anagram []
-  (go (let [response (<! (http/get (str (-> js/window .-location .-href) "get-shuffled-word/")))]
-        (reset! current-anagram (-> response :body :anagram)))))
+(defn reset-state! []
+  (reset! current-score -1)
+  (reset! last-top-answers {})
+  (reset! last-answer {}))
 
 (defn format-timer-human-readable [total-seconds]
   (let [hour   (* 1 60 60)
@@ -75,15 +85,25 @@
       (> m 0) (gstring/format "%02d:%02d" m s)
       :else (gstring/format "%02d" s))))
 
-(defn post-anagram-answer [anagram answer]
-  (go (let [response (<! (http/post (str (-> js/window .-location .-href) "get-score/" anagram "/" answer)))
+;; -------------------------
+;; API
+
+(defn get-top-answers! [anagram]
+  (go (let [response (<! (http/get (str (-> js/window .-location .-href) "api/get-top-answers/" anagram)))]
+        (reset! last-top-answers (:top-answers (:body response))))))
+
+(defn get-new-anagram! []
+  (go (let [response (<! (http/get (str (-> js/window .-location .-href) "api/get-shuffled-word/")))]
+        (reset! current-anagram (-> response :body :anagram)))))
+
+(defn post-anagram-answer! [anagram answer]
+  (go (let [response (<! (http/post (str (-> js/window .-location .-href) "api/get-score/" anagram "/" answer)))
             score (-> response :body :score)
             answer {:time (str (.getTime (js/Date.))) :score score :best-score (count anagram) :anagram anagram :answer answer :timer @timer}]
         (reset! current-score score)
         (reset! timer 0)
         (reset! last-answer answer)
-        (swap! history-local-storage conj answer)
-        (reset! history @history-local-storage))))
+        (swap! history conj answer))))
 
 ;; -------------------------
 ;; Handler
@@ -92,19 +112,19 @@
   (set! (.-innerHTML (.-target e)) (apply str (shuffle (seq "ANAGRAM")))))
 
 (defn clear-history []
-  (alandipert.storage-atom/clear-local-storage!)
-  (.reload (-> js/window .-location)))
+  (reset-state!)
+  (alandipert.storage-atom/clear-local-storage!))
 
 (defn skip-anagram []
   (reset! timer 0)
-  (get-new-anagram))
+  (get-new-anagram!))
 
 (defn new-anagram []
-  (get-new-anagram))
+  (get-new-anagram!))
 
 (defn anagram-submit [current-anagram answer]
-  (post-anagram-answer @current-anagram @answer)
-  (get-top-answers @current-anagram)
+  (post-anagram-answer! @current-anagram @answer)
+  (get-top-answers! @current-anagram)
   (new-anagram)
   (reset! answer ""))
 
@@ -165,7 +185,8 @@
      [:h1.title [:span {:on-mouse-over shuffle-anagram} "ANAGRAM"]]
      [timer-component]
      [anagram-question]
-     [:div [history-container]
+     [:div
+      [history-container]
       (when (>= @current-score 0)
         [top-answers])]]))
 
@@ -180,11 +201,8 @@
 ;; Page mounting component
 
 (defn current-page []
-  (fn []
-    (let [page (:current-page (session/get :route))]
-      [:div
-       [:header
-        [page]]])))
+  (let [page (:current-page (session/get :route))]
+    [:div [:header [page]]]))
 
 ;; -------------------------
 ;; Initialize app
